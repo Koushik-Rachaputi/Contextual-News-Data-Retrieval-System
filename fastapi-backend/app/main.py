@@ -2,13 +2,13 @@ from fastapi import FastAPI
 from typing import Optional
 from pydantic import BaseModel
 from app.services.gemini_client import analyze_query
-from app.api import category, search
+from app.api import category, search,source
 
 app = FastAPI()
 
 app.include_router(category.router)
 app.include_router(search.router)
-
+app.include_router(source.router)
 class QueryInput(BaseModel):
     query: str
 
@@ -24,10 +24,6 @@ def healthcheck():
 @app.post("/score")
 def post_score(item_id: int, score: float):
     return {"item_id": item_id, "score": score, "status": "saved"}
-
-@app.get("/source")
-def get_source():
-    return {"source": "Internal DB", "updated": "2025-04-12"}
 
 @app.get("/nearby")
 def get_nearby(lat: float, lon: float, radius_km: float = 5):
