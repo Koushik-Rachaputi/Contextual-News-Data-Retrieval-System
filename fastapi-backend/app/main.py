@@ -1,20 +1,15 @@
 from fastapi import FastAPI, Query
 from typing import Optional
-from app.services.gemini_client import analyze_query
 from pydantic import BaseModel
-from app.services.redis_client import get_news_by_id
+from app.services.gemini_client import analyze_query
+from app.api import category
+
 app = FastAPI()
+
+app.include_router(category.router)
 
 class QueryInput(BaseModel):
     query: str
-
-class NewsQuery(BaseModel):
-    news_id: str
-
-@app.post("/get-news/")
-async def get_news(query: NewsQuery):
-    result = get_news_by_id(query.news_id)
-    return result
 
 @app.post("/analyze")
 def analyze(input: QueryInput):
@@ -24,10 +19,6 @@ def analyze(input: QueryInput):
 @app.get("/healthcheck")
 def healthcheck():
     return {"status": "ok"}
-
-@app.get("/category")
-def get_category():
-    return {"categories": ["food", "entertainment", "shopping", "health"]}
 
 @app.post("/score")
 def post_score(item_id: int, score: float):

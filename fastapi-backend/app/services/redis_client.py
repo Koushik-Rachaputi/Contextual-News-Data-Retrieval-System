@@ -1,23 +1,20 @@
-import os
 import redis
-from redis.commands.json import JSON
+import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Redis connection setup
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = os.getenv("REDIS_PORT", 6379)
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
+def get_redis_client():
+    return redis.Redis(
+        host=os.getenv("REDIS_HOST", "localhost"),
+        port=int(os.getenv("REDIS_PORT", 6379)),
+        decode_responses=True
+    )
 
-# Connect to Redis
-redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, db=0)
-redis_json = JSON(redis_client)
-
-def get_news_by_id(news_id: str) -> dict:
-    key = f"news:{news_id}"
-    try:
-        data = redis_json.get(key)
-        return data or {"error": "News not found"}
-    except Exception as e:
-        return {"error": str(e)}
+def get_news_by_categories(redis_client, categories: list) -> list:
+    news_items = []
+    for key in redis_client.scan_iter("news:*"):
+        news = redis_client.json().get(key)
+        if news and any(cat.lower() in [c.lower() for c in news.get("category", [])] for cat in categories):
+            news_items.append(news)
+    return news_items
