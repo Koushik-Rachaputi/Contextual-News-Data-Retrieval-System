@@ -16,7 +16,7 @@ CATEGORIES = [
     "sports", "startup", "technology", "travel", "world"
 ]
 
-def analyze_query(query: str) -> dict:
+def analyze_query(query: str) -> str:
     prompt = f"""
     You are an intelligent assistant that extracts:
     - Intent (what the user wants)
@@ -30,21 +30,17 @@ def analyze_query(query: str) -> dict:
     - "nearby": Retrieve articles near a specific location (from the query).
 
     INSTRUCTIONS:
-    Given the input query, return a JSON with exactly:
-    {{
-    "intent": ["list of intents"],
-    "entities": ["list of named entities"]
-    }}
+    Given the input query, return a list of intent(s) and the corresponding entities.
 
     Input Query: "{query}"
-    Respond ONLY with valid JSON. No explanations.
+    Respond ONLY with plain text. No JSON or explanations, just the results.
     """
+    
+    # Generate response from the model
     response = model.generate_content(prompt)
-    try:
-        return eval(response.text)
-    except Exception:
-        return {"error": "Failed to parse response", "raw_response": response.text}
-
+    
+    # Return the plain text response
+    return response.text.strip()
 
 
 def classify_category(query: str) -> list:
