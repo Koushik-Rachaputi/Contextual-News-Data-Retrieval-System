@@ -102,15 +102,10 @@ Summary:"""
         return "Summary not available."
 
 def search_news(query: str, news_items: list) -> list:
-    """
-    This function takes a search query and ranks the news articles
-    based on the relevance of the query to the news content.
-    It uses an LLM model to better match articles with the user's query.
-    """
-    # Prepare the context for LLM
-    context = "\n\n".join([f"Title: {item['title']}\nDescription: {item['description']}" for item in news_items])
+    context = "\n\n".join([
+        f"Title: {item['title']}\nDescription: {item['description']}" for item in news_items
+    ])
 
-    # Prepare the prompt with both the query and the news context
     prompt = f"""
     You are a helpful assistant that ranks news articles based on their relevance to the user's query.
 
@@ -123,45 +118,39 @@ def search_news(query: str, news_items: list) -> list:
     Respond only with the titles in JSON array format.
     """
     
-    # Generate response from LLM
     response = model.generate_content(prompt)
     
     try:
-        # Parse the response text into a list of titles
         top_titles = eval(response.text)
-        
-        # Rank the news items based on their relevance score calculated by the LLM
-        ranked_news = []
-        for item in news_items:
-            relevance_score = calculate_relevance(query, item)  # Implement a custom relevance calculation if needed
-            ranked_news.append({**item, 'relevance_score': relevance_score})
-        
-        # Sort news by relevance score (descending order)
-        ranked_news = sorted(ranked_news, key=lambda x: x['relevance_score'], reverse=True)
 
-        # Return the top 5 articles based on their relevance score
-        return ranked_news[:5]
+        # Assign LLM relevance score to top 10 articles for better combination
+        top_news = [item for item in news_items if item["title"] in top_titles]
+
+        scored_news = []
+        for item in top_news:
+            llm_score = calculate_llm_relevance(query, item)
+            existing_score = item.get("relevance_score", 0.0)
+            final_score = (llm_score + existing_score) / 2  # Weighted average can be customized
+
+            scored_news.append({
+                **item,
+                "llm_relevance_score": llm_score,
+                "final_score": final_score
+            })
+
+        # Sort by final_score
+        return sorted(scored_news, key=lambda x: x["final_score"], reverse=True)[:5]
 
     except Exception as e:
-        # In case of any error, return a fallback of the first 5 news items
         print(f"Error processing response: {e}")
         return news_items[:5]
 
-def calculate_relevance(query: str, article: dict) -> float:
-    """
-    This function calculates a relevance score for a news article based on the user's query.
-    The scoring mechanism can be adjusted depending on the complexity you want (e.g., TF-IDF, BERT, etc.).
-    """
-    # A simple placeholder for relevance calculation (e.g., a basic keyword matching score)
+def calculate_llm_relevance(query: str, article: dict) -> float:
+    # Simple scoring logic; can be expanded
     title_match = query.lower() in article['title'].lower()
-    description_match = query.lower() in article['description'].lower()
+    desc_match = query.lower() in article['description'].lower()
+    score = 0.7 if title_match else 0.3
+    if desc_match:
+        score += 0.3
+    return min(score, 1.0)
 
-    # Example: If both title and description match, give a higher score
-    relevance_score = 0.7 if title_match else 0.3
-    if description_match:
-        relevance_score += 0.3
-
-    # Ensure relevance score is between 0 and 1
-    relevance_score = min(relevance_score, 1.0)
-
-    return relevance_score
